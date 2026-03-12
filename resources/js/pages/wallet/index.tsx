@@ -1,7 +1,8 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { CreditCard, Plus, Shield } from 'lucide-react';
+import { CreditCard, Plus, QrCode, Shield } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import Heading from '@/components/heading';
+import { QrScannerDialog } from '@/components/qr-scanner-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +21,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function WalletIndex({ credentials }: { credentials: SdJwtCredential[] }) {
     const [credentialOfferUrl, setCredentialOfferUrl] = useState('');
     const [authRequestUrl, setAuthRequestUrl] = useState('');
+    const [showOfferScanner, setShowOfferScanner] = useState(false);
+    const [showAuthScanner, setShowAuthScanner] = useState(false);
     const { flash } = usePage<{ flash: { success?: string; error?: string } }>().props;
 
     const handleReceiveCredential = (e: FormEvent) => {
@@ -77,6 +80,9 @@ export default function WalletIndex({ credentials }: { credentials: SdJwtCredent
                                         placeholder="openid-credential-offer://..."
                                     />
                                 </div>
+                                <Button type="button" variant="outline" size="icon" onClick={() => setShowOfferScanner(true)} title="Scan QR">
+                                    <QrCode className="h-4 w-4" />
+                                </Button>
                                 <Button type="submit" disabled={!credentialOfferUrl.trim()}>
                                     Receive
                                 </Button>
@@ -105,6 +111,9 @@ export default function WalletIndex({ credentials }: { credentials: SdJwtCredent
                                         placeholder="openid4vp://..."
                                     />
                                 </div>
+                                <Button type="button" variant="outline" size="icon" onClick={() => setShowAuthScanner(true)} title="Scan QR">
+                                    <QrCode className="h-4 w-4" />
+                                </Button>
                                 <Button type="submit" disabled={!authRequestUrl.trim()}>
                                     Authorize
                                 </Button>
@@ -158,6 +167,21 @@ export default function WalletIndex({ credentials }: { credentials: SdJwtCredent
                     )}
                 </div>
             </div>
+            <QrScannerDialog
+                open={showOfferScanner}
+                onOpenChange={setShowOfferScanner}
+                onScan={(result) => setCredentialOfferUrl(result)}
+                title="Scan Credential Offer"
+                description="Point your camera at the issuer's QR code"
+            />
+
+            <QrScannerDialog
+                open={showAuthScanner}
+                onOpenChange={setShowAuthScanner}
+                onScan={(result) => setAuthRequestUrl(result)}
+                title="Scan Authorization Request"
+                description="Point your camera at the verifier's QR code"
+            />
         </AppLayout>
     );
 }
