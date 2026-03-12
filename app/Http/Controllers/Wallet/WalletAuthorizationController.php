@@ -108,12 +108,17 @@ class WalletAuthorizationController extends Controller
                 state: $request->validated('state'),
             );
 
+            $responseBody = $response->json() ?? [];
+
             Log::info('VP Token submitted', [
                 'response_uri' => $request->validated('response_uri'),
                 'status' => $response->status(),
+                'body' => $responseBody,
             ]);
 
-            if ($response->successful()) {
+            $redirectUri = $responseBody['redirect_uri'] ?? $responseBody['error_uri'] ?? null;
+
+            if ($response->successful() || $redirectUri) {
                 return redirect()->route('wallet.index')->with('success', 'Verifiable Presentation submitted successfully.');
             }
 

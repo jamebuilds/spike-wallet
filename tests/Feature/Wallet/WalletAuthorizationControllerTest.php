@@ -144,6 +144,7 @@ it('submits a VP token successfully', function () {
     });
 
     $mockResponse = Mockery::mock(Response::class);
+    $mockResponse->shouldReceive('json')->andReturn([]);
     $mockResponse->shouldReceive('successful')->andReturn(true);
     $mockResponse->shouldReceive('status')->andReturn(200);
 

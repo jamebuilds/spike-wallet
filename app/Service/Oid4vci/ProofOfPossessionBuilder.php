@@ -30,7 +30,7 @@ class ProofOfPossessionBuilder
 
         $token = $builder
             ->withHeader('typ', 'openid4vci-proof+jwt')
-            ->withHeader('kid', $didJwk.'#0')
+            ->withHeader('jwk', $publicJwk)
             ->permittedFor($credentialIssuer)
             ->issuedAt(new DateTimeImmutable)
             ->withClaim('nonce', $cNonce)

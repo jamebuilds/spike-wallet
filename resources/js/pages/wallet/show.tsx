@@ -63,9 +63,11 @@ export default function WalletShow({ credential }: { credential: SdJwtCredential
             <Head title={credential.vct ?? 'Credential'} />
 
             <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto p-4">
-                <div className="flex items-start justify-between">
-                    <Heading title={credential.vct ?? 'Credential'} description={credential.issuer} />
-                    <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)}>
+                <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1 break-all">
+                        <Heading title={credential.vct ?? 'Credential'} description={credential.issuer} />
+                    </div>
+                    <Button variant="destructive" size="sm" className="shrink-0" onClick={() => setShowDeleteDialog(true)}>
                         <Trash2 className="mr-1 h-4 w-4" />
                         Delete
                     </Button>
