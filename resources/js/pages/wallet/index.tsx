@@ -43,7 +43,7 @@ export default function WalletIndex({ credentials }: { credentials: SdJwtCredent
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Web Wallet" />
 
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto p-4">
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-hidden p-4">
                 <Heading title="Web Wallet" description="Manage your verifiable credentials" />
 
                 {flash?.success && (
@@ -135,11 +135,11 @@ export default function WalletIndex({ credentials }: { credentials: SdJwtCredent
                     ) : (
                         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                             {credentials.map((credential) => (
-                                <Link key={credential.id} href={`/wallet/${credential.id}`} className="block">
-                                    <Card className="transition-colors hover:bg-accent">
+                                <Link key={credential.id} href={`/wallet/${credential.id}`} className="block min-w-0">
+                                    <Card className="overflow-hidden transition-colors hover:bg-accent">
                                         <CardHeader className="pb-2">
-                                            <div className="flex items-center justify-between">
-                                                <CardTitle className="text-sm font-medium">{credential.vct ?? 'Credential'}</CardTitle>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <CardTitle className="truncate text-sm font-medium">{credential.vct ?? 'Credential'}</CardTitle>
                                                 <Badge variant={credential.format === 'vc+sd-jwt' ? 'default' : 'outline'} className="text-[10px]">
                                                     {credential.format === 'vc+sd-jwt' ? 'SD-JWT' : 'JWT'}
                                                 </Badge>
