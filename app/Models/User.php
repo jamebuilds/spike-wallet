@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -23,6 +24,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'wallet_public_jwk',
+        'wallet_private_jwk',
     ];
 
     /**
@@ -35,6 +38,8 @@ class User extends Authenticatable
         'two_factor_secret',
         'two_factor_recovery_codes',
         'remember_token',
+        'wallet_public_jwk',
+        'wallet_private_jwk',
     ];
 
     /**
@@ -48,6 +53,14 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'wallet_public_jwk' => 'array',
+            'wallet_private_jwk' => 'encrypted',
         ];
+    }
+
+    /** @return HasMany<SdJwtCredential, $this> */
+    public function sdJwtCredentials(): HasMany
+    {
+        return $this->hasMany(SdJwtCredential::class);
     }
 }
