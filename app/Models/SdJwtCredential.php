@@ -27,6 +27,7 @@ class SdJwtCredential extends Model
         'disclosed_claims',
         'issuer',
         'vct',
+        'format',
     ];
 
     protected function casts(): array
@@ -48,5 +49,10 @@ class SdJwtCredential extends Model
     public function parseSdJwt(): SdJwtToken
     {
         return (new SdJwtParser)->parse($this->raw_sd_jwt);
+    }
+
+    public function isSdJwt(): bool
+    {
+        return $this->format === 'vc+sd-jwt';
     }
 }

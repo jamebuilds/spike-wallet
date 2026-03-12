@@ -3,6 +3,7 @@ export type SdJwtCredential = {
     issuer: string;
     vct: string | null;
     disclosed_claims: Record<string, unknown>;
+    format: string;
     raw_sd_jwt: string;
     created_at: string | null;
 };
@@ -19,20 +20,23 @@ export type IssuanceOfferProps = {
     txCode: string | null;
 };
 
+export type MatchingCredential = {
+    id: string;
+    issuer: string;
+    vct: string | null;
+    disclosed_claims: Record<string, unknown>;
+    format: string;
+    created_at: string | null;
+    available_claims: string[];
+    descriptor_id: string;
+};
+
 export type AuthorizationConsentProps = {
-    credential: {
-        id: string;
-        issuer: string;
-        vct: string | null;
-        disclosed_claims: Record<string, unknown>;
-        created_at: string | null;
-    };
+    credentials: MatchingCredential[];
     requestedClaims: string[];
-    matchedClaims: string[];
     clientId: string;
     nonce: string;
     responseUri: string;
     state: string | null;
     definitionId: string;
-    descriptorId: string;
 };

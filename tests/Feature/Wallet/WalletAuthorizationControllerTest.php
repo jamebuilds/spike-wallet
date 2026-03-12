@@ -55,9 +55,54 @@ it('renders authorization consent page with matching credential', function () {
             ->component('wallet/authorization/create')
             ->where('clientId', 'https://verifier.example.com')
             ->where('nonce', 'nonce-123')
-            ->has('credential')
+            ->has('credentials', 1)
             ->has('requestedClaims')
-            ->has('matchedClaims')
+        );
+});
+
+it('returns all matching credentials when multiple match', function () {
+    $user = User::factory()->create();
+    SdJwtCredential::factory()->create([
+        'user_id' => $user->id,
+        'vct' => 'IdentityCredential',
+        'disclosed_claims' => ['given_name' => 'John'],
+    ]);
+    SdJwtCredential::factory()->create([
+        'user_id' => $user->id,
+        'vct' => 'IdentityCredential',
+        'disclosed_claims' => ['given_name' => 'Jane'],
+    ]);
+
+    $this->mock(AuthorizationRequestParser::class, function ($mock) {
+        $mock->shouldReceive('parse')->once()->andReturn(new AuthorizationRequestDto(
+            clientId: 'https://verifier.example.com',
+            responseUri: 'https://verifier.example.com/callback',
+            responseType: 'vp_token',
+            nonce: 'nonce-123',
+            state: 'state-123',
+            presentationDefinition: [
+                'id' => 'identity-check',
+                'input_descriptors' => [
+                    [
+                        'id' => 'IdentityCredential',
+                        'constraints' => [
+                            'fields' => [
+                                ['path' => ['$.given_name']],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            responseMode: 'direct_post',
+        ));
+    });
+
+    $this->actingAs($user)
+        ->get('/wallet/authorize?auth_request_url=openid4vp://test')
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page
+            ->component('wallet/authorization/create')
+            ->has('credentials', 2)
         );
 });
 

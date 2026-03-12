@@ -51,7 +51,7 @@ class VpTokenResponseService
      *
      * @return array<string, mixed>
      */
-    public function buildPresentationSubmission(string $definitionId, string $descriptorId): array
+    public function buildPresentationSubmission(string $definitionId, string $descriptorId, string $format = 'vc+sd-jwt'): array
     {
         return [
             'id' => (string) Str::uuid(),
@@ -59,7 +59,7 @@ class VpTokenResponseService
             'descriptor_map' => [
                 [
                     'id' => $descriptorId,
-                    'format' => 'vc+sd-jwt',
+                    'format' => $format,
                     'path' => '$',
                 ],
             ],

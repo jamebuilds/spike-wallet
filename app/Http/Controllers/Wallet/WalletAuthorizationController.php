@@ -39,30 +39,33 @@ class WalletAuthorizationController extends Controller
 
         $credentials = $request->user()->sdJwtCredentials()->get();
 
-        $match = $matcher->findMatchingCredential($authRequest->presentationDefinition, $credentials);
+        $matches = $matcher->findAllMatchingCredentials($authRequest->presentationDefinition, $credentials);
 
-        if (! $match) {
+        if (empty($matches)) {
             return redirect()->route('wallet.index')->with('error', 'No credential matches the verifier\'s request.');
         }
 
         $definitionId = $authRequest->presentationDefinition['id'] ?? 'default';
 
+        $matchingCredentials = array_map(fn (array $match) => [
+            'id' => $match['credential']->id,
+            'issuer' => $match['credential']->issuer,
+            'vct' => $match['credential']->vct,
+            'disclosed_claims' => $match['credential']->disclosed_claims,
+            'format' => $match['credential']->format,
+            'created_at' => $match['credential']->created_at?->toISOString(),
+            'available_claims' => $match['available_claims'],
+            'descriptor_id' => $match['descriptor_id'],
+        ], $matches);
+
         return Inertia::render('wallet/authorization/create', [
-            'credential' => [
-                'id' => $match['credential']->id,
-                'issuer' => $match['credential']->issuer,
-                'vct' => $match['credential']->vct,
-                'disclosed_claims' => $match['credential']->disclosed_claims,
-                'created_at' => $match['credential']->created_at?->toISOString(),
-            ],
-            'requestedClaims' => $match['requested_claims'],
-            'matchedClaims' => $match['available_claims'],
+            'credentials' => array_values($matchingCredentials),
+            'requestedClaims' => $matches[0]['requested_claims'],
             'clientId' => $authRequest->clientId,
             'nonce' => $authRequest->nonce,
             'responseUri' => $authRequest->responseUri,
             'state' => $authRequest->state,
             'definitionId' => $definitionId,
-            'descriptorId' => $match['descriptor_id'],
         ]);
     }
 
@@ -78,17 +81,23 @@ class WalletAuthorizationController extends Controller
         $user = $request->user();
         $token = $credential->parseSdJwt();
 
+        $format = $credential->format;
+
         $vpToken = $presenter->present(
             user: $user,
             token: $token,
             selectedDisclosureNames: $request->validated('selected_claims'),
             nonce: $request->validated('nonce'),
             audience: $request->validated('client_id'),
+            format: $format,
         );
+
+        $submissionFormat = $credential->isSdJwt() ? 'vc+sd-jwt' : 'jwt_vp';
 
         $presentationSubmission = $vpTokenResponseService->buildPresentationSubmission(
             $request->validated('definition_id'),
             $request->validated('descriptor_id'),
+            $submissionFormat,
         );
 
         try {

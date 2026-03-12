@@ -21,6 +21,7 @@ class SdJwtCredentialResource extends JsonResource
             'issuer' => $this->issuer,
             'vct' => $this->vct,
             'disclosed_claims' => $this->disclosed_claims,
+            'format' => $this->format,
             'raw_sd_jwt' => $this->raw_sd_jwt,
             'created_at' => $this->created_at?->toISOString(),
         ];

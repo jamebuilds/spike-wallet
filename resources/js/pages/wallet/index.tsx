@@ -129,7 +129,12 @@ export default function WalletIndex({ credentials }: { credentials: SdJwtCredent
                                 <Link key={credential.id} href={`/wallet/${credential.id}`} className="block">
                                     <Card className="transition-colors hover:bg-accent">
                                         <CardHeader className="pb-2">
-                                            <CardTitle className="text-sm font-medium">{credential.vct ?? 'Credential'}</CardTitle>
+                                            <div className="flex items-center justify-between">
+                                                <CardTitle className="text-sm font-medium">{credential.vct ?? 'Credential'}</CardTitle>
+                                                <Badge variant={credential.format === 'vc+sd-jwt' ? 'default' : 'outline'} className="text-[10px]">
+                                                    {credential.format === 'vc+sd-jwt' ? 'SD-JWT' : 'JWT'}
+                                                </Badge>
+                                            </div>
                                             <CardDescription className="truncate text-xs">{credential.issuer}</CardDescription>
                                         </CardHeader>
                                         <CardContent>

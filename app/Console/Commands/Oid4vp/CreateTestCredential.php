@@ -113,6 +113,7 @@ Q/keADCI6DWRdMz2e+mdab4RZABkDPnLzg==
             'disclosed_claims' => $disclosedClaims,
             'issuer' => $issuerDid,
             'vct' => $vct,
+            'format' => 'vc+sd-jwt',
         ]);
 
         $this->info('SD-JWT-VC created successfully.');

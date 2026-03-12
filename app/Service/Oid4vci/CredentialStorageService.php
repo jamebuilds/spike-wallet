@@ -38,6 +38,11 @@ class CredentialStorageService
             }
         }
 
+        // Determine format: has _sd or disclosures → SD-JWT-VC, otherwise plain JWT VC
+        $hasSdArray = isset($issuerClaims['_sd']);
+        $hasDisclosures = ! empty($token->disclosures);
+        $format = ($hasSdArray || $hasDisclosures) ? 'vc+sd-jwt' : 'jwt_vc_json';
+
         return SdJwtCredential::create([
             'user_id' => $user->id,
             'raw_sd_jwt' => $rawCredential,
@@ -45,6 +50,7 @@ class CredentialStorageService
             'disclosed_claims' => $disclosedClaims,
             'issuer' => $issuer,
             'vct' => $vct,
+            'format' => $format,
         ]);
     }
 }

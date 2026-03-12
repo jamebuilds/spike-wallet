@@ -20,11 +20,25 @@ class SdJwtPresenter
     ) {}
 
     /**
-     * Create a VP Token with selective disclosures and Key Binding JWT.
+     * Create a VP Token appropriate for the credential format.
      *
      * @param  array<int, string>  $selectedDisclosureNames
      */
-    public function present(User $user, SdJwtToken $token, array $selectedDisclosureNames, string $nonce, string $audience): string
+    public function present(User $user, SdJwtToken $token, array $selectedDisclosureNames, string $nonce, string $audience, string $format = 'vc+sd-jwt'): string
+    {
+        if ($format !== 'vc+sd-jwt') {
+            return $this->buildVpJwt($user, $token->issuerJwtRaw, $nonce, $audience);
+        }
+
+        return $this->buildSdJwtPresentation($user, $token, $selectedDisclosureNames, $nonce, $audience);
+    }
+
+    /**
+     * SD-JWT-VC presentation: issuer JWT + selected disclosures + KB-JWT.
+     *
+     * @param  array<int, string>  $selectedDisclosureNames
+     */
+    private function buildSdJwtPresentation(User $user, SdJwtToken $token, array $selectedDisclosureNames, string $nonce, string $audience): string
     {
         $selectedDisclosures = [];
         foreach ($selectedDisclosureNames as $name) {
@@ -44,6 +58,30 @@ class SdJwtPresenter
         $kbJwt = $this->buildKeyBindingJwt($user, $nonce, $audience, $sdHash);
 
         return $sdJwtWithoutKb.$kbJwt;
+    }
+
+    /**
+     * Plain JWT VC presentation: wrap in a VP JWT envelope with nonce.
+     */
+    private function buildVpJwt(User $user, string $vcJwt, string $nonce, string $audience): string
+    {
+        $encoder = new JoseEncoder;
+        $builder = new Builder($encoder, ChainedFormatter::withUnixTimestampDates());
+
+        $key = InMemory::plainText($this->holderKeyService->getPrivateKeyPem($user));
+
+        $token = $builder
+            ->issuedAt(new DateTimeImmutable)
+            ->permittedFor($audience)
+            ->withClaim('nonce', $nonce)
+            ->withClaim('vp', [
+                '@context' => ['https://www.w3.org/2018/credentials/v1'],
+                'type' => ['VerifiablePresentation'],
+                'verifiableCredential' => [$vcJwt],
+            ])
+            ->getToken(new Sha256, $key);
+
+        return $token->toString();
     }
 
     private function buildKeyBindingJwt(User $user, string $nonce, string $audience, string $sdHash): string

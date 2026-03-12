@@ -15,6 +15,18 @@ class PresentationDefinitionMatcher
      */
     public function findMatchingCredential(array $presentationDefinition, Collection $credentials): ?array
     {
+        $matches = $this->findAllMatchingCredentials($presentationDefinition, $credentials);
+
+        return $matches[0] ?? null;
+    }
+
+    /**
+     * @param  Collection<int, SdJwtCredential>  $credentials
+     * @return array<int, array{credential: SdJwtCredential, requested_claims: array<int, string>, available_claims: array<int, string>, descriptor_id: string}>
+     */
+    public function findAllMatchingCredentials(array $presentationDefinition, Collection $credentials): array
+    {
+        $matches = [];
         $inputDescriptors = $presentationDefinition['input_descriptors'] ?? [];
 
         foreach ($inputDescriptors as $descriptor) {
@@ -50,7 +62,7 @@ class PresentationDefinitionMatcher
                     }
                 }
 
-                return [
+                $matches[] = [
                     'credential' => $credential,
                     'requested_claims' => $requestedClaims,
                     'available_claims' => $availableClaims,
@@ -59,7 +71,7 @@ class PresentationDefinitionMatcher
             }
         }
 
-        return null;
+        return $matches;
     }
 
     /**

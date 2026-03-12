@@ -25,6 +25,23 @@ class SdJwtCredentialFactory extends Factory
             'disclosed_claims' => ['given_name' => 'John', 'family_name' => 'Doe'],
             'issuer' => 'https://test-issuer.example.com',
             'vct' => 'IdentityCredential',
+            'format' => 'vc+sd-jwt',
         ];
+    }
+
+    public function jwtVc(): static
+    {
+        return $this->state(fn () => [
+            'raw_sd_jwt' => 'eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJodHRwczovL3Rlc3QtaXNzdWVyLmV4YW1wbGUuY29tIn0.sig',
+            'issuer_claims' => [
+                'iss' => 'https://test-issuer.example.com',
+                'vc' => [
+                    'type' => ['VerifiableCredential', 'BankId'],
+                    'credentialSubject' => ['given_name' => 'John'],
+                ],
+            ],
+            'vct' => 'BankId',
+            'format' => 'jwt_vc_json',
+        ]);
     }
 }
