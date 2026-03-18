@@ -7,18 +7,13 @@ The purpose of this spike is to validate the end-to-end credential lifecycle (re
 ## Table of Contents
 
 - [What This Spike Covers](#what-this-spike-covers)
-- [Tech Stack](#tech-stack)
-- [Architecture Overview](#architecture-overview)
-- [Database Schema](#database-schema)
 - [OID4VCI: Credential Issuance Flow](#oid4vci-credential-issuance-flow)
 - [OID4VP: Credential Presentation Flow](#oid4vp-credential-presentation-flow)
 - [Holder Key Management](#holder-key-management)
 - [SD-JWT Parsing](#sd-jwt-parsing)
-- [Routes](#routes)
-- [Project Structure](#project-structure)
-- [Design Decisions & Rationale](#design-decisions--rationale)
+- [Credential Storage Schema](#credential-storage-schema)
+- [Architecture & Design Decisions](#architecture--design-decisions)
 - [Production Considerations](#production-considerations)
-- [Setup](#setup)
 
 ---
 
@@ -30,109 +25,6 @@ The purpose of this spike is to validate the end-to-end credential lifecycle (re
 4. **Holder Key Binding** - EC P-256 key pair generation for proof of possession and key binding JWTs
 5. **SD-JWT Support** - Parse and handle SD-JWT-VC (selective disclosure) and plain JWT-VC credentials
 6. **QR Code Scanning** - Scan credential offer and authorization request URLs via camera
-
----
-
-## Tech Stack
-
-| Layer | Technology | Version |
-|-------|-----------|---------|
-| Backend Framework | Laravel | 12 |
-| PHP | | 8.4 |
-| Frontend Framework | React | 19 |
-| Server-Client Bridge | Inertia.js | v2 |
-| Styling | Tailwind CSS | v4 |
-| JWT Library | lcobucci/jwt | v5 |
-| Auth Backend | Laravel Fortify | v1 |
-| Route Binding (TS) | Laravel Wayfinder | v0 |
-| Testing | Pest | v4 |
-| Build Tool | Vite | v7 |
-| Database | SQLite | (configurable) |
-| UI Components | Radix UI | various |
-| QR Scanner | html5-qrcode | v2.3 |
-
----
-
-## Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────┐
-│                   Frontend (React)                  │
-│  ┌──────────┐  ┌───────────┐  ┌──────────────────┐ │
-│  │  Wallet   │  │ Issuance  │  │  Authorization   │ │
-│  │ Dashboard │  │  Accept   │  │  Consent Screen  │ │
-│  └──────────┘  └───────────┘  └──────────────────┘ │
-│         │             │               │             │
-│         └─────────────┼───────────────┘             │
-│                       │ Inertia.js                  │
-├───────────────────────┼─────────────────────────────┤
-│                   Backend (Laravel)                 │
-│  ┌────────────────────┼──────────────────────────┐  │
-│  │              Controllers (Wallet/)            │  │
-│  │  Dashboard │ Issuance │ Authorization │ Show  │  │
-│  └────────────┼──────────┼───────────────┼───────┘  │
-│               │          │               │          │
-│  ┌────────────▼──┐  ┌────▼────────────┐  │         │
-│  │  OID4VCI      │  │  OID4VP         │  │         │
-│  │  Services     │  │  Services       │  │         │
-│  │               │  │                 │  │         │
-│  │ OfferParser   │  │ AuthReqParser   │  │         │
-│  │ MetadataRes.  │  │ PDefMatcher     │  │         │
-│  │ TokenEndpoint │  │ SdJwtPresenter  │  │         │
-│  │ PoPBuilder    │  │ VpTokenResponse │  │         │
-│  │ CredEndpoint  │  │                 │  │         │
-│  │ CredStorage   │  │                 │  │         │
-│  └───────────────┘  └─────────────────┘  │         │
-│                                          │         │
-│  ┌──────────────┐  ┌─────────────────┐   │         │
-│  │ HolderKey    │  │  SD-JWT Parser  │   │         │
-│  │ Service      │  │  (Token, Disc.) │   │         │
-│  └──────────────┘  └─────────────────┘   │         │
-│                                          │         │
-│  ┌──────────────┐  ┌─────────────────┐   │         │
-│  │   DTOs       │  │   Policies      │───┘         │
-│  │ (Oid4vci/vp) │  │ (Authorization) │             │
-│  └──────────────┘  └─────────────────┘             │
-│                                                     │
-│  ┌──────────────────────────────────────┐           │
-│  │         Models (User, SdJwtCred)     │           │
-│  └──────────────────────────────────────┘           │
-└─────────────────────────────────────────────────────┘
-```
-
-### Layer Breakdown
-
-- **Controllers** (`app/Http/Controllers/Wallet/`) - Thin HTTP layer. Parse requests, delegate to services, return Inertia responses.
-- **Services** (`app/Service/Oid4vci/`, `app/Service/Oid4vp/`) - All protocol logic lives here. Each service handles one step of the OID4VCI or OID4VP flow.
-- **DTOs** (`app/Dto/`) - Typed data transfer objects for external API communication. Prevent accidental data leakage and provide clear contracts.
-- **Policies** (`app/Policies/`) - Authorization rules (users can only access their own credentials).
-- **Models** (`app/Models/`) - Eloquent models with relationships (`User` hasMany `SdJwtCredential`).
-
----
-
-## Database Schema
-
-### Users Table (wallet-specific columns)
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `wallet_public_jwk` | json, nullable | EC P-256 public key in JWK format |
-| `wallet_private_jwk` | text, nullable | EC P-256 private key (encrypted at rest via Laravel's `encrypted` cast) |
-
-### SD JWT Credentials Table
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | uuid (PK) | Unique credential identifier |
-| `user_id` | foreignId | Owner (cascades on delete) |
-| `raw_sd_jwt` | text | Full raw credential string |
-| `issuer_claims` | json | All claims from the issuer JWT payload |
-| `disclosed_claims` | json | Claims available for selective disclosure |
-| `issuer` | string | Issuer URI |
-| `vct` | string, nullable | Verifiable Credential Type identifier |
-| `format` | string | `vc+sd-jwt` or `jwt_vc_json` |
-| `created_at` | timestamp | |
-| `updated_at` | timestamp | |
 
 ---
 
@@ -182,7 +74,7 @@ User scans QR / pastes credential_offer URL
 - **Format detection**: if the credential contains `~` separators, it's SD-JWT; otherwise plain JWT
 - **SD-JWT parsing**: splits on `~` to get issuer JWT + disclosures, decodes each disclosure's base64url JSON
 
-### Key DTOs
+### Data Contracts
 
 - `CredentialOfferDto` - credential_issuer, credential_configuration_ids, pre_authorized_code, tx_code
 - `IssuerMetadataDto` - credential_issuer, token_endpoint, credential_endpoint, credential_configurations_supported
@@ -235,7 +127,7 @@ User scans QR / pastes authorization request URL
 - **Plain JWT credentials**: wrapped in a VP Token envelope since they don't support selective disclosure
 - **Response mode**: `direct_post` - the VP token is POSTed directly to the verifier's `response_uri`
 
-### Key DTOs
+### Data Contracts
 
 - `AuthorizationRequestDto` - client_id, response_uri, response_type, nonce, state, presentation_definition, response_mode
 
@@ -243,11 +135,9 @@ User scans QR / pastes authorization request URL
 
 ## Holder Key Management
 
-**Service**: `HolderKeyService`
-
-- Generates **EC P-256** (NIST) key pairs on first use (lazy initialization)
-- Public key stored as **JWK** (JSON Web Key) in the `wallet_public_jwk` column
-- Private key stored as PEM, **encrypted at rest** using Laravel's `encrypted` cast
+- Generates **EC P-256** (NIST) key pairs on first use (lazy initialization — not at registration)
+- Public key stored as **JWK** (JSON Web Key)
+- Private key stored as PEM, **encrypted at rest**
 - Keys are used for:
   - **Proof of Possession** during credential issuance (PoP JWT in credential request)
   - **Key Binding JWT** during credential presentation (proves holder possession)
@@ -262,8 +152,6 @@ User scans QR / pastes authorization request URL
 ---
 
 ## SD-JWT Parsing
-
-**Classes**: `SdJwtParser`, `SdJwtToken`, `Disclosure`, `Base64Url`
 
 ### SD-JWT Structure
 
@@ -289,144 +177,63 @@ User scans QR / pastes authorization request URL
 
 ---
 
-## Routes
+## Credential Storage Schema
 
-### Wallet Routes (authenticated + verified)
+### User Key Columns
 
-| Method | URI | Controller | Description |
-|--------|-----|-----------|-------------|
-| GET | `/wallet` | `WalletDashboardController` | List credentials, QR scan inputs |
-| GET | `/wallet/receive` | `WalletCredentialIssuanceController::create` | Parse credential offer, show acceptance UI |
-| POST | `/wallet/receive` | `WalletCredentialIssuanceController::store` | Execute issuance flow, store credential |
-| GET | `/wallet/authorize` | `WalletAuthorizationController::create` | Parse auth request, show consent screen |
-| POST | `/wallet/authorize` | `WalletAuthorizationController::store` | Submit presentation to verifier |
-| GET | `/wallet/{sdJwtCredential}` | `WalletCredentialShowController` | View credential details (policy: `view`) |
-| DELETE | `/wallet/{sdJwtCredential}` | `WalletCredentialDeleteController` | Delete credential (policy: `delete`) |
+| Column | Type | Description |
+|--------|------|-------------|
+| `wallet_public_jwk` | json, nullable | EC P-256 public key in JWK format |
+| `wallet_private_jwk` | text, nullable | EC P-256 private key (encrypted at rest) |
 
-### Authentication Routes (Laravel Fortify)
+### Credentials Table
 
-Login, registration, password reset, email verification, and 2FA are all handled by Fortify's built-in routes.
-
----
-
-## Project Structure
-
-```
-app/
-├── Dto/
-│   ├── Oid4vci/
-│   │   ├── CredentialOfferDto.php
-│   │   ├── CredentialResponseDto.php
-│   │   ├── IssuerMetadataDto.php
-│   │   └── TokenResponseDto.php
-│   └── Oid4vp/
-│       └── AuthorizationRequestDto.php
-├── Http/
-│   ├── Controllers/
-│   │   ├── Settings/          # Profile, password, 2FA
-│   │   └── Wallet/            # 5 wallet controllers
-│   └── Requests/              # Form request validation
-├── Models/
-│   ├── User.php               # Extended with wallet key columns
-│   └── SdJwtCredential.php    # UUID primary key, belongs to User
-├── Policies/
-│   └── SdJwtCredentialPolicy.php
-└── Service/
-    ├── Oid4vci/
-    │   ├── CredentialEndpointService.php
-    │   ├── CredentialOfferParser.php
-    │   ├── CredentialStorageService.php
-    │   ├── IssuerMetadataResolver.php
-    │   ├── ProofOfPossessionBuilder.php
-    │   └── TokenEndpointService.php
-    └── Oid4vp/
-        ├── AuthorizationRequest/
-        │   ├── AuthorizationRequestParser.php
-        │   └── PresentationDefinitionMatcher.php
-        ├── SdJwt/
-        │   ├── Base64Url.php
-        │   ├── Disclosure.php
-        │   ├── SdJwtParser.php
-        │   ├── SdJwtPresenter.php
-        │   └── SdJwtToken.php
-        ├── HolderKeyService.php
-        └── VpTokenResponseService.php
-
-resources/js/pages/
-├── wallet/
-│   ├── index.tsx              # Dashboard with credential list + QR scanners
-│   ├── show.tsx               # Credential detail view
-│   ├── issuance/create.tsx    # Accept credential offer
-│   └── authorization/create.tsx  # Consent screen for presentation
-├── auth/                      # Login, register, 2FA, etc.
-├── settings/                  # Profile, password, appearance
-├── dashboard.tsx
-└── welcome.tsx
-```
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Unique credential identifier |
+| `user_id` | foreignId | Owner (cascades on delete) |
+| `raw_sd_jwt` | text | Full raw credential string |
+| `issuer_claims` | json | All claims from the issuer JWT payload |
+| `disclosed_claims` | json | Claims available for selective disclosure |
+| `issuer` | string | Issuer URI |
+| `vct` | string, nullable | Verifiable Credential Type identifier |
+| `format` | string | `vc+sd-jwt` or `jwt_vc_json` |
 
 ---
 
-## Design Decisions & Rationale
+## Architecture & Design Decisions
 
-### 1. Service-per-step Architecture
+### Service-per-step Pattern
 
-**Decision**: Each step of the OID4VCI/OID4VP flow is its own service class (e.g., `CredentialOfferParser`, `TokenEndpointService`).
+Each step of the OID4VCI/OID4VP flow is its own service class (e.g., `CredentialOfferParser`, `TokenEndpointService`). The protocols are multi-step flows involving different external endpoints — isolating each step makes them independently testable, swappable, and easier to reason about. In production, this makes it straightforward to add retry logic, circuit breakers, or caching at specific steps.
 
-**Rationale**: The OID4VCI and OID4VP protocols are multi-step flows involving different external endpoints. Isolating each step makes individual steps independently testable, swappable, and easier to reason about. In production, this also makes it straightforward to add retry logic, circuit breakers, or caching at specific steps.
+### Typed DTOs for External API Data
 
-### 2. DTOs for External API Data
+All data received from external APIs (issuers, verifiers) is mapped into typed DTOs before use. External API responses are untrusted — DTOs provide a validation boundary, prevent accidental use of raw/unexpected fields, and give the codebase clear contracts for what data each flow step produces and consumes.
 
-**Decision**: All data received from external APIs (issuers, verifiers) is mapped into typed DTOs before use.
+### Single Credential Model for Both Formats
 
-**Rationale**: External API responses are untrusted. DTOs provide a validation boundary, prevent accidental use of raw/unexpected fields, and give the codebase clear contracts for what data each flow step produces and consumes.
+Both SD-JWT-VC and plain JWT-VC credentials are stored in the same table, differentiated by a `format` column. The storage and display requirements are nearly identical. A `format` column is sufficient to branch behavior at the service layer (e.g., selective disclosure only applies to `vc+sd-jwt`).
 
-### 3. Holder Keys on User Model (not separate table)
+### Holder Keys on User (not separate table)
 
-**Decision**: Store `wallet_public_jwk` and `wallet_private_jwk` directly on the `users` table.
+For this spike, each user has exactly one key pair stored directly on the users table. In production, consider a dedicated `holder_keys` table for multiple keys or key rotation.
 
-**Rationale**: For this spike, each user has exactly one key pair. A separate table would add complexity without benefit. In production, consider a dedicated `holder_keys` table if users need multiple keys or key rotation.
+### UUID Primary Keys for Credentials
 
-### 4. SD-JWT Credential as Single Model
+Credentials are sensitive. UUIDs prevent enumeration attacks and are suitable for distributed systems if the credential store is ever sharded or replicated.
 
-**Decision**: Both SD-JWT-VC and plain JWT-VC credentials are stored in the same `sd_jwt_credentials` table, differentiated by a `format` column.
+### Lazy Key Generation
 
-**Rationale**: The storage and display requirements are nearly identical. A `format` column is sufficient to branch behavior at the service layer (e.g., selective disclosure only applies to `vc+sd-jwt`). Avoids model/table proliferation for what is fundamentally the same entity.
+Holder key pairs are generated on first credential issuance, not at registration. Not all users will use wallet features — lazy generation avoids unnecessary overhead and simplifies registration.
 
-### 5. Private Key Encryption via Laravel Cast
+### Private Key Encryption at Rest
 
-**Decision**: Private keys are stored as PEM text encrypted using Laravel's `encrypted` cast.
+Private keys are stored as PEM text, encrypted at rest using the application encryption key (AES-256-CBC). Transparently decrypted when accessed. In production, consider HSM or cloud KMS integration.
 
-**Rationale**: Leverages Laravel's built-in encryption (AES-256-CBC with the APP_KEY) without adding infrastructure. The private key is transparently decrypted when accessed on the model. In production, consider HSM or cloud KMS integration.
+### Client-side QR Code Scanning
 
-### 6. SQLite for Spike
-
-**Decision**: Use SQLite as the default database.
-
-**Rationale**: Zero configuration, file-based, ideal for rapid prototyping. The schema is simple enough that migration to MySQL/PostgreSQL requires no changes beyond the `.env` configuration.
-
-### 7. Inertia.js (No Separate API)
-
-**Decision**: Use Inertia.js for the frontend-backend bridge instead of a REST/GraphQL API.
-
-**Rationale**: The wallet UI is tightly coupled to the backend flows. Inertia eliminates API boilerplate, provides type-safe props via Wayfinder, and keeps the full-stack in a single deployable unit. In production, a separate API layer may be needed if mobile clients are added.
-
-### 8. UUID Primary Keys for Credentials
-
-**Decision**: `sd_jwt_credentials` uses UUID primary keys instead of auto-incrementing integers.
-
-**Rationale**: Credentials are sensitive. UUIDs prevent enumeration attacks and are suitable for distributed systems if the credential store is ever sharded or replicated.
-
-### 9. QR Code Scanning on Frontend
-
-**Decision**: QR scanning is handled client-side using `html5-qrcode` rather than server-side image processing.
-
-**Rationale**: Credential offer and authorization request URLs are embedded in QR codes by issuers/verifiers. Client-side scanning provides instant feedback and doesn't require uploading images to the server.
-
-### 10. Lazy Key Generation
-
-**Decision**: Holder key pairs are generated on first credential issuance, not at registration.
-
-**Rationale**: Not all registered users will use wallet features. Lazy generation avoids unnecessary key generation overhead and simplifies the registration flow.
+Credential offer and authorization request URLs are embedded in QR codes by issuers/verifiers. Client-side scanning provides instant feedback without uploading images to the server.
 
 ---
 
@@ -435,11 +242,10 @@ resources/js/pages/
 Areas to address when moving from spike to production:
 
 ### Security
-- [ ] Move private key storage to **HSM or cloud KMS** (AWS KMS, Azure Key Vault, etc.) instead of database encryption
+- [ ] Move private key storage to **HSM or cloud KMS** (AWS KMS, Azure Key Vault, etc.)
 - [ ] Add **key rotation** support with a dedicated `holder_keys` table
 - [ ] Implement **credential revocation** checking (status list, revocation endpoints)
 - [ ] Add **rate limiting** on issuance and presentation endpoints
-- [ ] Implement **CSRF protection** for authorization flows
 - [ ] Add **input validation** for credential offer/authorization request URLs before processing
 
 ### Protocol Compliance
@@ -457,7 +263,6 @@ Areas to address when moving from spike to production:
 - [ ] Add **activity log** for credential usage history
 
 ### Infrastructure
-- [ ] Switch to **MySQL/PostgreSQL** for production workloads
 - [ ] Add **queue-based processing** for external API calls (issuance, presentation)
 - [ ] Implement **audit logging** for compliance
 - [ ] Add **monitoring and alerting** for external API failures
@@ -467,29 +272,3 @@ Areas to address when moving from spike to production:
 - [ ] Add **integration tests** with mock issuers and verifiers
 - [ ] Add **end-to-end tests** for full issuance and presentation flows
 - [ ] Add **conformance testing** against OID4VCI/OID4VP test suites
-
----
-
-## Setup
-
-```bash
-# Clone and install
-git clone <repo-url>
-cd spikeWallt
-composer run setup
-
-# Development (runs Laravel server + Vite + queue + logs)
-composer run dev
-
-# Run tests
-composer run test
-
-# Lint PHP
-vendor/bin/pint --dirty
-
-# Lint JS
-npm run lint:check
-
-# Type check
-npm run types:check
-```
